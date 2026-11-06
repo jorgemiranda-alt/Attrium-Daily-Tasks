@@ -8,7 +8,7 @@ import base64, datetime, json, os, pathlib, sys, urllib.parse, urllib.request
 
 dotenv = pathlib.Path(__file__).with_name(".env")
 env = dict(l.split("=", 1) for l in dotenv.read_text().splitlines() if "=" in l) if dotenv.exists() else {}
-cfg = lambda k: (os.environ.get(k) or env[k]).strip()
+cfg = lambda k: (env.get(k) or os.environ[k]).strip()  # .env first: Windows always sets its own USERNAME
 
 start = sys.argv[1] if len(sys.argv) > 1 else datetime.date.today().isoformat()
 end = sys.argv[2] if len(sys.argv) > 2 else start

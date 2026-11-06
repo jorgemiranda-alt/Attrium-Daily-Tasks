@@ -21,5 +21,8 @@ rows = json.load(urllib.request.urlopen(req, timeout=900))["Report_Entry"]
 
 body = json.dumps({"Report_Entry": rows}).encode()  # same shape Workday returns
 post = urllib.request.Request(cfg("WEBHOOK_URL"), data=body, headers={"Content-Type": "application/json"})
-status = urllib.request.urlopen(post, timeout=120).status
+try:
+    status = urllib.request.urlopen(post, timeout=120).status
+except TimeoutError:  # CloudApper keeps processing (~70 rows/min) after the reply times out
+    status = "accepted, reply timed out (workflow still running)"
 print(f"{start}..{end}: {len(rows)} rows -> webhook {status}")

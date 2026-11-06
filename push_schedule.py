@@ -19,7 +19,7 @@ auth = base64.b64encode(f"{cfg('USERNAME')}:{cfg('PASSWORD')}".encode()).decode(
 req = urllib.request.Request(url, headers={"Authorization": f"Basic {auth}"})
 rows = json.load(urllib.request.urlopen(req, timeout=900))["Report_Entry"]
 
-body = json.dumps({"start_date": start, "end_date": end, "count": len(rows), "rows": rows}).encode()
+body = json.dumps({"Report_Entry": rows}).encode()  # same shape Workday returns
 post = urllib.request.Request(cfg("WEBHOOK_URL"), data=body, headers={"Content-Type": "application/json"})
 status = urllib.request.urlopen(post, timeout=120).status
 print(f"{start}..{end}: {len(rows)} rows -> webhook {status}")

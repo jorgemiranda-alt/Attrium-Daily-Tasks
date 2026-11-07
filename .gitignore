@@ -1,2 +1,5 @@
 .env
 __pycache__/
+cloudapper-backup/
+cloudapper-build/
+.playwright-mcp/

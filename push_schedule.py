@@ -7,7 +7,7 @@ Usage:
 Config: USERNAME, PASSWORD, WEBHOOK_URL, WEBHOOK_URL_2, WEBHOOK_URL_3 from a .env next to this script,
 else environment variables (cloud). No retries: Atrium's Workday is sensitive to load. Stdlib only.
 """
-import base64, datetime, json, os, pathlib, sys, urllib.parse, urllib.request
+import base64, datetime, http.client, json, os, pathlib, sys, urllib.parse, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 dotenv = pathlib.Path(__file__).with_name(".env")
@@ -20,7 +20,10 @@ def fetch(start, end):
     q = urllib.parse.urlencode({"Start_Date": f"{start}-00:00", "End_Date": f"{end}-00:00", "format": "json"})
     auth = base64.b64encode(f"{cfg('USERNAME')}:{cfg('PASSWORD')}".encode()).decode()
     req = urllib.request.Request(f"{REPORT}?{q}", headers={"Authorization": f"Basic {auth}"})
-    return json.load(urllib.request.urlopen(req, timeout=900))["Report_Entry"]
+    try:
+        return json.load(urllib.request.urlopen(req, timeout=900))["Report_Entry"]
+    except Exception as e:  # say which stage failed; never retry
+        raise RuntimeError(f"Workday fetch {start}..{end} failed: {type(e).__name__}: {e}") from e
 
 
 def post(hook, rows):
@@ -29,6 +32,10 @@ def post(hook, rows):
         return urllib.request.urlopen(req, timeout=120).status
     except TimeoutError:  # CloudApper keeps processing (~50-70 rows/min) after the reply times out
         return "accepted, reply timed out (workflow still running)"
+    except (http.client.RemoteDisconnected, ConnectionResetError):  # CloudApper dropped the connection mid-processing
+        return "connection dropped by CloudApper (workflow likely still running; verify shifts in CloudApper)"
+    except Exception as e:  # report per webhook instead of crashing the other days' posts
+        return f"webhook post FAILED: {type(e).__name__}: {e}"
 
 
 def split_days(per_day):

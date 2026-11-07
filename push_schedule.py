@@ -1,6 +1,6 @@
 """Pull Atrium schedule blocks from Workday RaaS for a date range and POST them to WEBHOOK_URL.
 
-Usage: python push_schedule.py [START_DATE] [END_DATE]   (YYYY-MM-DD; default: today .. today)
+Usage: python push_schedule.py [START_DATE] [END_DATE] [WEBHOOK_URL]   (YYYY-MM-DD; default: today .. today; webhook default from config)
 Credentials: env vars USERNAME, PASSWORD, WEBHOOK_URL (cloud), else a .env file next to this script (local).
 One report call per run, no retries: Atrium's Workday is sensitive to load. Stdlib only.
 """
@@ -20,7 +20,8 @@ req = urllib.request.Request(url, headers={"Authorization": f"Basic {auth}"})
 rows = json.load(urllib.request.urlopen(req, timeout=900))["Report_Entry"]
 
 body = json.dumps({"Report_Entry": rows}).encode()  # same shape Workday returns
-post = urllib.request.Request(cfg("WEBHOOK_URL"), data=body, headers={"Content-Type": "application/json"})
+hook = sys.argv[3] if len(sys.argv) > 3 else cfg("WEBHOOK_URL")  # optional override, e.g. a parallel workflow
+post = urllib.request.Request(hook,data=body, headers={"Content-Type": "application/json"})
 try:
     status = urllib.request.urlopen(post, timeout=120).status
 except TimeoutError:  # CloudApper keeps processing (~70 rows/min) after the reply times out

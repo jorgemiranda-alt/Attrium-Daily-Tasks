@@ -1,7 +1,7 @@
 """Pull Atrium schedule blocks from Workday RaaS and POST them to CloudApper webhooks.
 
 Usage:
-  python push_schedule.py --3days                   today, tomorrow, day after: 3 parallel Workday calls,
+  python push_schedule.py --3days                   today, tomorrow, day after: 3 sequential Workday calls (~9-10 min),
                                                     each day posted to its own workflow (WEBHOOK_URL, _2, _3)
   python push_schedule.py [START] [END] [WEBHOOK]   one call for a date range (YYYY-MM-DD; default today)
 Config: USERNAME, PASSWORD, WEBHOOK_URL, WEBHOOK_URL_2, WEBHOOK_URL_3 from a .env next to this script,
@@ -56,8 +56,8 @@ if __name__ == "__main__" and sys.argv[1:2] == ["--3days"]:
     today = datetime.date.today()
     days = [(today + datetime.timedelta(i)).isoformat() for i in range(3)]
     hooks = [cfg("WEBHOOK_URL"), cfg("WEBHOOK_URL_2"), cfg("WEBHOOK_URL_3")]
+    per_day = split_days([fetch(d, d) for d in days])  # sequential: parallel calls slowed Workday past a ~5 min cutoff
     with ThreadPoolExecutor(3) as ex:
-        per_day = split_days(list(ex.map(lambda d: fetch(d, d), days)))
         results = list(ex.map(post, hooks, per_day))
     for d, rows, res in zip(days, per_day, results):
         print(f"{d}: {len(rows)} rows -> webhook {res}")
